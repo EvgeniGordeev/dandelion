@@ -243,11 +243,11 @@ public final class ResourceScanner {
 
 	/**
 	 * <p>
-	 * Scans for all resources in the given {@code url} that reffers to a JAR
+	 * Scans for all resources in the given {@code url} that refers to a JAR
 	 * file.
 	 * 
 	 * @param url
-	 *            The URL that reffers to the JAR file in which resources will
+	 *            The URL that refers to the JAR file in which resources will
 	 *            be scanned.
 	 * @return A set of non-filtered resource paths.
 	 * @throws IOException
@@ -256,6 +256,11 @@ public final class ResourceScanner {
 	private static Set<String> scanForResourcePathsInJarFile(URL url) throws IOException {
 
 		Set<String> extractedResourcePaths = new HashSet<String>();
+
+        // Recreate the URL if its inside Websphere
+        if (url.getProtocol().startsWith("wsjar")) {
+            url = new URL("jar", url.getHost(), url.getPort(), url.getPath());
+        }
 
 		URLConnection connection = url.openConnection();
 
@@ -285,7 +290,7 @@ public final class ResourceScanner {
 	 * Tests whether the given {@code path} is authorized according to the
 	 * passed list of paths to exclude.
 	 * 
-	 * @param path
+	 * @param resourcePath
 	 *            The path name that must not be present in the list of excluded
 	 *            paths.
 	 * @param authorizedLocation
