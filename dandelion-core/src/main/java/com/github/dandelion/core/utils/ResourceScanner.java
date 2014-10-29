@@ -45,11 +45,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.github.dandelion.core.DandelionException;
+import com.github.dandelion.core.utils.scanner.JBossVFS2UrlResolver;
+import com.github.dandelion.core.utils.scanner.JBossVFS3LocationResourceScanner;
+import com.github.dandelion.core.utils.scanner.JBossVFS3UrlResolver;
+import com.github.dandelion.core.utils.scanner.UrlResolver;
 
 /**
  * <p>
  * Utility class used for searching for resources in the classpath.
- * 
+ *
  * @author Thibault Duchateau
  * @since 0.10.0
  */
@@ -63,11 +67,11 @@ public final class ResourceScanner {
 	 * Finds the logical path of the first resource that matches the given
 	 * {@code resourceName} by scanning the classpath under the given
 	 * {@code location}.
-	 * 
+	 *
 	 * <p>
 	 * By default, no other condition but the name will be applied to the
 	 * resource name and the classpath scanning won't be recursive.
-	 * 
+	 *
 	 * @param location
 	 *            The classpath location where to scan.
 	 * @param nameFilter
@@ -91,7 +95,7 @@ public final class ResourceScanner {
 	 * <p>
 	 * Finds the virtual path of all resources that match the given conditions
 	 * by scanning the classpath under the given {@code location}.
-	 * 
+	 *
 	 * @param location
 	 *            The classpath location where to scan.
 	 * @param excludedPaths
@@ -114,7 +118,7 @@ public final class ResourceScanner {
 	 * <p>
 	 * Finds the virtual path of all resources that match the given conditions
 	 * by scanning the classpath under the given {@code location}.
-	 * 
+	 *
 	 * @param location
 	 *            The classpath location where to scan.
 	 * @param excludedPaths
@@ -139,7 +143,7 @@ public final class ResourceScanner {
 	 * <p>
 	 * Scans for all resources that match the given confitions by scanning the
 	 * classpath.
-	 * 
+	 *
 	 * @param location
 	 *            The classpath location where to scan.
 	 * @param excludedPaths
@@ -173,7 +177,8 @@ public final class ResourceScanner {
 		while (urls.hasMoreElements()) {
 
 			URL url = urls.nextElement();
-			if ("file".equals(url.getProtocol())) {
+            String protocol = url.getProtocol();
+            if ("file".equals(protocol)) {
 
 				// Computes the physical root of the classpath to later
 				// determine the resource path more easily
@@ -185,15 +190,30 @@ public final class ResourceScanner {
 
 				resourcePaths.addAll(scanForResourcePathsInFileSystem(folder, classpathPhysicalRoot, recursive));
 			}
-			else if ("jar".equals(url.getProtocol()) || "zip".equals(url.getProtocol()) // Weblogic
-					|| "wsjar".equals(url.getProtocol())) // Websphere
+			else if ("jar".equals(protocol) || "zip".equals(protocol) // Weblogic
+					|| "wsjar".equals(protocol)) // Websphere
 			{
 
 				resourcePaths.addAll(scanForResourcePathsInJarFile(url));
-			}
+			}else if (protocol.startsWith("vfs") || protocol.startsWith("vfszip")) {
+                UrlResolver resolver = null;
+                if (LibraryDetector.isJBossVFS2Available()) {
+                    LOG.debug("Selected URL resolver: {}", JBossVFS2UrlResolver.class.getSimpleName());
+                    resolver =  new JBossVFS2UrlResolver();
+                }
+
+                if (LibraryDetector.isJBossVFS3Available()) {
+                    LOG.debug("Selected URL resolver: {}", JBossVFS3UrlResolver.class.getSimpleName());
+                    resolver =  new JBossVFS3UrlResolver();
+                }
+                String urlStr = url.toString();
+                if (urlStr.contains(".jar/") && resolver != null) {
+                    resourcePaths.addAll(new JBossVFS3LocationResourceScanner().findResourcePaths(urlStr.split(".jar")[1], resolver.toStandardUrl(url)));
+                }
+            }
 			else {
 				StringBuilder sb = new StringBuilder("The protocol ");
-				sb.append(url.getProtocol());
+				sb.append(protocol);
 				sb.append(" is not supported.");
 				throw new DandelionException(sb.toString());
 			}
@@ -206,7 +226,7 @@ public final class ResourceScanner {
 	/**
 	 * <p>
 	 * Scans for all resources in the given file system {@code folder}.
-	 * 
+	 *
 	 * @param folder
 	 *            Folder in which the files will be scanned/listed.
 	 * @param classpathPhysicalRoot
@@ -245,7 +265,7 @@ public final class ResourceScanner {
 	 * <p>
 	 * Scans for all resources in the given {@code url} that refers to a JAR
 	 * file.
-	 * 
+	 *
 	 * @param url
 	 *            The URL that refers to the JAR file in which resources will
 	 *            be scanned.
@@ -284,12 +304,12 @@ public final class ResourceScanner {
 
 		return extractedResourcePaths;
 	}
-	
+
 	/**
 	 * <p>
 	 * Tests whether the given {@code path} is authorized according to the
 	 * passed list of paths to exclude.
-	 * 
+	 *
 	 * @param resourcePath
 	 *            The path name that must not be present in the list of excluded
 	 *            paths.
@@ -329,7 +349,7 @@ public final class ResourceScanner {
 	 * <li>If either {@code prefixFilter} or {@code suffixFilter} or both are
 	 * used, the resource won't be filtered on its name at all.</li>
 	 * </ul>
-	 * 
+	 *
 	 * @param resourcePaths
 	 *            The scanned resource paths.
 	 * @param excludedPaths

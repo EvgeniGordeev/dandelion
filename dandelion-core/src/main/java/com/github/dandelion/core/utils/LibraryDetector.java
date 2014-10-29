@@ -42,6 +42,8 @@ public final class LibraryDetector {
 
 	private static Boolean jstlAvailable;
 	private static Boolean thymeleafAvailable;
+    private static Boolean jbossVFSv2Available;
+    private static Boolean jbossVFSv3Available;
 
 	/**
 	 * @return {@code true} if the JSTL is present in the classpath, otherwise
@@ -66,6 +68,30 @@ public final class LibraryDetector {
 
 		return thymeleafAvailable;
 	}
+
+    /**
+     * @return {@code true} if the JBoss VFS2 infrastructure is present in the
+     *         classpath, otherwise {@code false}.
+     */
+    public static boolean isJBossVFS2Available() {
+        if (jbossVFSv2Available == null) {
+            jbossVFSv2Available = ClassUtils.isPresent("org.jboss.virtual.VFS");
+        }
+
+        return jbossVFSv2Available;
+    }
+
+    /**
+     * @return {@code true} if the JBoss VFS3 infrastructure is present in the
+     *         classpath, otherwise {@code false}.
+     */
+    public static boolean isJBossVFS3Available() {
+        if (jbossVFSv3Available == null) {
+            jbossVFSv3Available = ClassUtils.isPresent("org.jboss.vfs.VFS");
+        }
+
+        return jbossVFSv3Available;
+    }
 
 	/**
 	 * Prevent instantiation.
